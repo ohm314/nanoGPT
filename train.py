@@ -24,6 +24,7 @@ from contextlib import nullcontext
 
 import numpy as np
 import torch
+import torch.profiler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
@@ -252,7 +253,16 @@ t0 = time.time()
 local_iter_num = 0 # number of iterations in the lifetime of this process
 raw_model = model.module if ddp else model # unwrap DDP container if needed
 running_mfu = -1.0
+
+# initialize profiler
+prof = torch.profiler.profile(
+        schedule=torch.profiler.schedule(wait=10, warmup=10, active=10, repeat=3),
+        on_trace_ready=torch.profiler.tensorboard_trace_handler(f"./log/nano-gpt-rank{ddp_rank}"),
+        record_shapes=True,
+        with_stack=True)
+prof.start()
 while True:
+    prof.step()
 
     # determine and set the learning rate for this iteration
     lr = get_lr(iter_num) if decay_lr else learning_rate
@@ -331,6 +341,9 @@ while True:
     # termination conditions
     if iter_num > max_iters:
         break
+
+# stop profiler
+prof.stop()
 
 if ddp:
     destroy_process_group()
