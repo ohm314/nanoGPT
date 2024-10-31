@@ -79,12 +79,12 @@ config = {k: globals()[k] for k in config_keys} # will be useful for logging
 # -----------------------------------------------------------------------------
 
 # various inits, derived attributes, I/O setup
-ddp = int(os.environ.get('RANK', -1)) != -1 # is this a ddp run?
+ddp = int(os.environ.get('OMPI_COMM_WORLD_RANK', -1)) != -1 # is this a ddp run?
 if ddp:
-    init_process_group(backend=backend)
-    ddp_rank = int(os.environ['RANK'])
-    ddp_local_rank = int(os.environ['LOCAL_RANK'])
-    ddp_world_size = int(os.environ['WORLD_SIZE'])
+    ddp_rank = int(os.environ['OMPI_COMM_WORLD_RANK'])
+    ddp_local_rank = int(os.environ['OMPI_COMM_WORLD_LOCAL_RANK'])
+    ddp_world_size = int(os.environ['OMPI_COMM_WORLD_SIZE'])
+    init_process_group(backend=backend, world_size=ddp_world_size, rank=ddp_rank)
     device = f'cuda:{ddp_local_rank}'
     torch.cuda.set_device(device)
     master_process = ddp_rank == 0 # this process will do logging, checkpointing etc.
